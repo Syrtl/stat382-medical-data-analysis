@@ -1,0 +1,279 @@
+---
+title: "STAT 382: Project 1 — Medical Data Analysis"
+author: "Amir Syrtlanov"
+date: "October 24, 2025"
+output: html_document
+---
+
+# **Project 1 Report**
+
+This document contains all Tasks (1–9) for STAT 382 Project 1 using `medicaldata1.csv`.
+
+---
+
+## **Task 1: R Markdown Setup and Data Import**
+
+I will knit this R Markdown file to an **HTML document**. To create the **PDF** for submission, I will open the HTML in my web browser and use **File → Print → Save as PDF**.
+
+The **`.Rmd`** file is the *source* with code and explanations. The **PDF** is the *final report* showing formatted text, results, tables, and graphs (with code hidden when appropriate).
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, fig.width = 7, fig.height = 4.5)
+
+
+medicaldata <- read.csv("medicaldata1.csv")
+
+
+head(medicaldata)
+```
+## **Task 2: Convert Categorical Variables to Factors**
+```{r}
+
+
+medicaldata$Gallstone_Status <- factor(medicaldata$Gallstone_Status,
+levels = c(0, 1),
+labels = c("Yes", "No"))
+
+
+
+medicaldata$Comorbidity <- factor(medicaldata$Comorbidity,
+levels = c(0,1,2,3),
+labels = c("None","One","Two","Three+"),
+ordered = TRUE)
+
+
+
+medicaldata$CAD <- factor(medicaldata$CAD,
+levels = c(0,1),
+labels = c("No","Yes"))
+
+
+
+medicaldata$Diabetes_Mellitus <- factor(medicaldata$Diabetes_Mellitus,
+levels = c(0,1),
+labels = c("No","Yes"))
+
+
+
+medicaldata$Hepatic_Fat_Accumulation <- factor(medicaldata$Hepatic_Fat_Accumulation,
+levels = c(0,1,2,3),
+labels = c("None","Mild","Moderate","Severe"),
+ordered = TRUE)
+
+# Quick structure check
+
+str(medicaldata)
+
+
+```
+## **Task 3: Quantitative Variable — Body Protein Content**
+```{r}
+
+# Missing values
+
+sum(is.na(medicaldata$Body_Protein_Content))
+
+# Histogram
+
+hist(medicaldata$Body_Protein_Content,
+main = "Histogram of Body Protein Content",
+xlab = "Body Protein Content (%)")
+
+# Boxplot
+
+boxplot(medicaldata$Body_Protein_Content,
+main = "Boxplot of Body Protein Content",
+ylab = "Body Protein Content (%)")
+
+# Descriptive statistics
+
+bpc_summary <- summary(medicaldata$Body_Protein_Content)
+bpc_sd <- sd(medicaldata$Body_Protein_Content, na.rm = TRUE)
+list(Summary = bpc_summary, SD = bpc_sd)
+
+
+#Interpretation:
+#The histogram shows Body Protein Content to be approximately symmetric with mean approximately 16% and range approximately 8% to 25%.
+#It also indicates the presence of some minor outliers on the higher side, reflecting slightly right-skewed data.
+#Overall, the variation is moderate (SD ≈ 2.3%), thus most of the participants have similar protein levels.
+
+
+```
+
+## **Task 4: Categorical Variable — Comorbidity**
+```{r}
+
+comorb_tbl <- table(medicaldata$Comorbidity)
+comorb_tbl
+
+# Bar plot
+
+barplot(comorb_tbl,
+main = "Distribution of Comorbidity",
+xlab = "Comorbidity Level",
+ylab = "Count")
+
+
+#Interpretation:
+#The bar chart and frequency table both show that the majority of participants have no comorbidities, with fewer and fewer as more comorbidities there are.
+#This indicates that the majority of the population in the dataset is very healthy, while there are few individuals with more than two comorbidities.
+#Distribution is heavily right-skewed, highlighting that high levels of comorbidity are rare among this sample.
+
+
+
+
+```
+
+## **Task 5: Gallstone Status vs Hepatic Fat Accumulation**
+```{r}
+tab_GH <- table(Hepatic_Fat = medicaldata$Hepatic_Fat_Accumulation,
+Gallstones = medicaldata$Gallstone_Status)
+tab_GH
+
+# Row-wise (conditional on hepatic fat grade) proportions
+
+prop_GH <- prop.table(tab_GH, margin = 1)
+prop_GH
+
+# Side-by-side barplot of counts
+
+barplot(tab_GH, beside = TRUE, legend = TRUE,
+main = "Gallstone Status by Hepatic Fat Accumulation",
+xlab = "Hepatic Fat Grade", ylab = "Count")
+
+# Moment-based estimators without external packages
+
+sample_skewness <- function(x) {
+x <- x[is.finite(x)]
+n <- length(x); m <- mean(x); s <- sd(x)
+if (n < 3 || s == 0) return(NA_real_)
+sum(((x - m)/s)^3) * (n / ((n - 1)*(n - 2)))
+}
+
+sample_kurtosis <- function(x) {
+
+# Returns kurtosis where normal ≈ 3
+
+x <- x[is.finite(x)]
+n <- length(x); m <- mean(x); s <- sd(x)
+if (n < 4 || s == 0) return(NA_real_)
+num <- sum(((x - m)/s)^4) * (n*(n+1)) / ((n-1)*(n-2)*(n-3))
+adj <- 3 * ((n-1)^2) / ((n-2)*(n-3))
+num - adj + 3
+}
+
+
+#Interpretation:
+#The bar chart and table illustrate the fact that gallstones are most common among participants with mild hepatic fat content.
+#As the intensity of hepatic fat increases, gallstone prevalence is not correspondingly increased, showing merely a weak association.
+#Overall, the visual data indicate that gallstone status and hepatic fat accumulation are not very closely related.
+
+```
+## **Task 6: Normality of Lean Mass**
+```{r}
+
+
+lm <- medicaldata$Lean_Mass
+
+# Histogram
+
+hist(lm, main = "Histogram of Lean Mass", xlab = "Lean Mass (%)")
+
+# Q–Q plot
+
+qqnorm(lm, main = "Q–Q Plot of Lean Mass")
+qqline(lm, col = "red")
+
+
+skew_lm <- sample_skewness(lm)
+kurt_lm <- sample_kurtosis(lm)
+list(Skewness = skew_lm, Kurtosis = kurt_lm)
+
+
+shapiro.test(lm)
+
+
+
+#Interpretation:
+#Q–Q plot and histogram show Lean Mass to be nearly bell-shaped with little deviation from the diagonal line, pointing towards near-normality.
+#Both the skewness and kurtosis values are close to those of the normal distribution, and the Shapiro–Wilk test p-value is greater than 0.03.
+#We cannot, therefore, reject the null hypothesis and conclude that Lean Mass can be approximated as normally distributed for this sample.
+
+
+```
+
+## **Task 7: Age Class and Total Body Fat Ratio**
+```{r}
+
+
+medicaldata$Age_Class <- cut(
+medicaldata$Age,
+breaks = c(-Inf, 40, 55, 65, Inf),
+labels = c("Younger", "Lower Middle", "Upper Middle", "Elder"),
+ordered_result = TRUE
+)
+
+# Boxplots
+
+boxplot(Total_Body_Fat_Ratio ~ Age_Class, data = medicaldata,
+main = "Total Body Fat Ratio by Age Class",
+xlab = "Age Class", ylab = "Total Body Fat Ratio (%)")
+
+# Group summaries: mean and sd per age class
+
+aggregate(Total_Body_Fat_Ratio ~ Age_Class, data = medicaldata,
+FUN = function(x) c(mean = mean(x), sd = sd(x)))
+
+#Interpretation:
+#The boxplot indicates that Total Body Fat Ratio tends to rise with age up to the "Upper Middle" group, but then levels off slightly for "Elder" participants.
+#The summary statistics confirm that the older groups of patients have a greater mean body fat percentage than the younger groups of patients.
+#This reflects a negative weak correlation between age and ratio of body fat, that is, as age goes on, body fat rises but tends to stabilize later in life.
+
+```
+
+## **Task 8: Hypothesis Test — Mean Lean Mass > 70**
+```{r}
+t_res_lm <- t.test(medicaldata$Lean_Mass,
+mu = 70,
+alternative = "greater",
+conf.level = 0.94)
+t_res_lm
+
+#Interpretation:
+#One-sample t-test for Lean Mass gave a p-value smaller than the significance level of 0.06, i.e., the sample mean is significantly greater than 70%.
+#The 94% confidence interval for the mean is entirely above 70%, contributing to this conclusion.
+#Therefore, we reject the null hypothesis and deduce that, on average, participants have a mean Lean Mass percentage greater than 70%.
+
+
+```
+
+## **Task 9: Hypothesis Test — Glucose by CAD Status**
+```{r}
+glucose_yes <- medicaldata$Glucose[medicaldata$CAD == "Yes"]
+glucose_no  <- medicaldata$Glucose[medicaldata$CAD == "No"]
+
+# Quick visual
+
+boxplot(glucose_yes, glucose_no, names = c("CAD: Yes", "CAD: No"),
+main = "Glucose by CAD Group", ylab = "Glucose (mg/dL)")
+
+# Variance test (info only)
+
+var.test(glucose_yes, glucose_no)
+
+
+t_two <- t.test(glucose_yes, glucose_no,
+alternative = "two.sided",
+var.equal = FALSE,
+conf.level = 0.99)  # 99% CI to match alpha = 0.01
+t_two
+
+#Interpretation:
+#The boxplot shows that the glucose levels are very similar for CAD and non-CAD participants.
+#The variance test indicates unequal variances, so the Welch two-sample t-test was used.
+#The p-value found is greater than the significance level 0.01, and thus we fail to reject the null hypothesis.
+#In this data, there is no notable difference in the mean glucose level among CAD and non-CAD groups.
+
+```
+
+
